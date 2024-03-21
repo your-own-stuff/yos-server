@@ -33,12 +33,13 @@ func main() {
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
 		e.Router.GET("/rebuild-index", func(c echo.Context) error {
-			admin := apis.RequestInfo(c).Admin
-			if admin == nil {
+			authRecord := apis.RequestInfo(c).AuthRecord
+			// unauthorized
+			if authRecord == nil || !authRecord.GetBool("isAdmin") {
 				return c.JSON(http.StatusUnauthorized, "Unauthorized")
 			}
 
-			go controller.GenerateIndex(app)
+			go controller.GenerateIndex(app, authRecord.Id)
 
 			return c.JSON(http.StatusOK, map[string]string{"status": "started"})
 		})

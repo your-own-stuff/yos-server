@@ -15,7 +15,25 @@ func init() {
 		admin.Email = "admin@admin.com"
 		admin.SetPassword("adminadmin")
 
-		return dao.SaveAdmin(admin)
+		err := dao.SaveAdmin(admin)
 
-	},nil)
+		if err != nil {
+			return err
+		}
+
+		collection, err := dao.FindCollectionByNameOrId("users")
+		if err != nil {
+			return err
+		}
+
+		record := models.NewRecord(collection)
+		record.SetUsername("admin")
+		record.SetPassword("asdfasdf")
+		record.Set("name", "Admin")
+		record.Set("email", "user@probs.at")
+		record.Set("isAdmin", true)
+		record.SetVerified(true)
+
+		return dao.SaveRecord(record)
+	}, nil)
 }
