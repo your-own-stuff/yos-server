@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"io/fs"
 	"log"
 	"math"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
-	"golang.org/x/sync/semaphore"
 )
 
 const maxWorkers int64 = 1000
@@ -19,14 +17,17 @@ const retryWaitTime = 125 * time.Millisecond
 // GenerateIndex triggers the index generation process
 func GenerateIndex(dao *daos.Dao, owner string) error {
 	indexRebuilding, err := dao.FindFirstRecordByData("systemstatus", "name", "index_rebuilding")
+
 	if err != nil {
 		return err
 	}
+
 	indexRebuilding.Set("value", "true")
 	dao.SaveRecord(indexRebuilding)
 
 	// Simulate index rebuilding
 	err = traversDirAndBuildIndex(dao, "data", owner)
+
 	if err != nil {
 		return err
 	}
@@ -37,8 +38,43 @@ func GenerateIndex(dao *daos.Dao, owner string) error {
 	return nil
 }
 
-// updateRecord updates or creates a record in the database
-func updateRecord(dao *daos.Dao, path string, info fs.FileInfo, owner string) error {
+type workItem struct {
+	path string
+	info fs.DirEntry
+}
+
+func retryWithExponentialBackoff(action func() error, maxRetries int, initialDelay time.Duration, backoffFactor float64) error {
+	retryCount := 0
+	for {
+		err := action()
+		if err == nil {
+			return nil
+		}
+
+		retryCount++
+		if retryCount > maxRetries {
+			return err
+		}
+
+		delay := time.Duration(float64(initialDelay) * math.Pow(backoffFactor, float64(retryCount-1)))
+		time.Sleep(delay)
+	}
+}
+
+func worker(dao *daos.Dao, owner string, workQueue <-chan workItem, done chan<- bool) {
+	for item := range workQueue {
+		err := retryWithExponentialBackoff(func() error {
+			return updateRecord(dao, item.path, item.info, owner)
+		}, 5, retryWaitTime, 1.25)
+
+		if err != nil {
+			log.Printf("Failed to update record for %s: %v", item.path, err)
+		}
+	}
+	done <- true
+}
+
+func updateRecord(dao *daos.Dao, path string, info fs.DirEntry, owner string) error {
 	collection, err := dao.FindCollectionByNameOrId("data_resources")
 	if err != nil {
 		return err
@@ -65,46 +101,23 @@ func updateRecord(dao *daos.Dao, path string, info fs.FileInfo, owner string) er
 	return nil
 }
 
-// retryWithExponentialBackoff retries action with exponential backoff
-func retryWithExponentialBackoff(action func() error, maxRetries int, initialDelay time.Duration, backoffFactor float64) error {
-	retryCount := 0
-	for {
-		err := action()
-		if err == nil {
-			return nil
-		}
-
-		retryCount++
-		if retryCount > maxRetries {
-			return err // Return the last error
-		}
-
-		delay := time.Duration(float64(initialDelay) * math.Pow(backoffFactor, float64(retryCount-1)))
-		time.Sleep(delay)
-	}
-}
-
-// traversDirAndBuildIndex walks through the directory and builds the index
 func traversDirAndBuildIndex(dao *daos.Dao, path string, owner string) error {
-	sem := semaphore.NewWeighted(maxWorkers)
-	ctx := context.TODO()
+	// Create work queue and done channel
+	workQueue := make(chan workItem, maxWorkers) // Buffer based on maxWorkers
+	done := make(chan bool)
 
-	err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-		if err := sem.Acquire(ctx, 1); err != nil {
+	// Start a fixed number of worker goroutines
+	for i := 0; i < int(maxWorkers); i++ {
+		go worker(dao, owner, workQueue, done)
+	}
+
+	// Dispatch work to the work queue
+	err := filepath.WalkDir(path, func(path string, info fs.DirEntry, err error) error {
+		if err != nil {
 			return err
 		}
 
-		go func() {
-			defer sem.Release(1)
-
-			err := retryWithExponentialBackoff(func() error {
-				return updateRecord(dao, path, info, owner)
-			}, 5, retryWaitTime, 1.25)
-
-			if err != nil {
-				log.Printf("Failed to update record after retries: %v", err)
-			}
-		}()
+		workQueue <- workItem{path: path, info: info}
 
 		return nil
 	})
@@ -113,9 +126,11 @@ func traversDirAndBuildIndex(dao *daos.Dao, path string, owner string) error {
 		return err
 	}
 
-	// Wait for all goroutines to finish
-	for sem.Acquire(ctx, maxWorkers) != nil {
-		time.Sleep(retryWaitTime)
+	// Close the work queue and wait for all workers to finish
+	close(workQueue)
+
+	for i := 0; i < int(maxWorkers); i++ {
+		<-done // Wait for each worker to signal completion
 	}
 
 	return nil
