@@ -19,7 +19,7 @@ func init() {
 		}
 
 		// add
-		new_field := &schema.SchemaField{}
+		newField := &schema.SchemaField{}
 		if err := json.Unmarshal([]byte(`{
 			"system": false,
 			"id": "rq9vuzbo",
@@ -35,10 +35,10 @@ func init() {
 				"maxSelect": 1,
 				"displayFields": null
 			}
-		}`), new_field); err != nil {
+		}`), newField); err != nil {
 			return err
 		}
-		collection.Schema.AddField(new_field)
+		collection.Schema.AddField(newField)
 
 		return dao.SaveCollection(collection)
 	}, func(db dbx.Builder) error {
