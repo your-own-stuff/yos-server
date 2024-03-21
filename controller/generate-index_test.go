@@ -10,7 +10,6 @@ import (
 )
 
 const pbTestDataDir = "../pb_data_test"
-const testDataDir = "../data_test"
 
 func TestTraversDirAndBuildIndex(t *testing.T) {
 	testApp, err := tests.NewTestApp(pbTestDataDir)
@@ -19,7 +18,18 @@ func TestTraversDirAndBuildIndex(t *testing.T) {
 	}
 	defer testApp.Cleanup()
 
-	err = traversDirAndBuildIndex(testApp.Dao(), testDataDir, "test")
+	rootPath, err := os.MkdirTemp("", "benchmark")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := setupBenchmarkingFolder(rootPath, 10, 10)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = traversDirAndBuildIndex(testApp.Dao(), path, "test")
 
 	if err != nil {
 		t.Fatal(err)
