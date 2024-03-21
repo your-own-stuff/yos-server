@@ -39,7 +39,7 @@ func main() {
 				return c.JSON(http.StatusUnauthorized, "Unauthorized")
 			}
 
-			go controller.GenerateIndex(app, authRecord.Id)
+			go controller.GenerateIndex(app.Dao(), authRecord.Id)
 
 			return c.JSON(http.StatusOK, map[string]string{"status": "started"})
 		})

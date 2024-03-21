@@ -3,35 +3,39 @@ package controller
 import (
 	"os"
 
-	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
 )
 
-func GenerateIndex(app *pocketbase.PocketBase, owner string) error {
-	indexRebuilding, err := app.Dao().FindFirstRecordByData("systemstatus", "name", "index_rebuilding")
+func GenerateIndex(dao *daos.Dao, owner string) error {
+	indexRebuilding, err := dao.FindFirstRecordByData("systemstatus", "name", "index_rebuilding")
 	if err != nil {
 		return err
 	}
 	indexRebuilding.Set("value", "true")
-	app.Dao().SaveRecord(indexRebuilding)
+	dao.SaveRecord(indexRebuilding)
 
 	// simulate index rebuilding
-	traversDirAndBuildIndex(app, "data", owner)
+	traversDirAndBuildIndex(dao, "data", owner)
 
 	indexRebuilding.Set("value", "false")
-	app.Dao().SaveRecord(indexRebuilding)
+	dao.SaveRecord(indexRebuilding)
 
 	return nil
 }
 
-func traversDirAndBuildIndex(app *pocketbase.PocketBase, path string, owner string) error {
-	entries, _ := os.ReadDir(path)
-	collection, err := app.Dao().FindCollectionByNameOrId("data_resources")
+func traversDirAndBuildIndex(dao *daos.Dao, path string, owner string) error {
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 
-	parent, _ := app.Dao().FindFirstRecordByData(collection.Id, "path", path)
+	collection, err := dao.FindCollectionByNameOrId("data_resources")
+	if err != nil {
+		return err
+	}
+
+	parent, _ := dao.FindFirstRecordByData(collection.Id, "path", path)
 
 	for _, entry := range entries {
 		record := models.NewRecord(collection)
@@ -44,10 +48,10 @@ func traversDirAndBuildIndex(app *pocketbase.PocketBase, path string, owner stri
 		}
 		if entry.IsDir() {
 			record.Set("type", "dir")
-			app.Dao().SaveRecord((record))
-			traversDirAndBuildIndex(app, path+"/"+entry.Name(), owner)
+			dao.SaveRecord((record))
+			traversDirAndBuildIndex(dao, path+"/"+entry.Name(), owner)
 		}
-		app.Dao().SaveRecord((record))
+		dao.SaveRecord((record))
 	}
 
 	return nil
