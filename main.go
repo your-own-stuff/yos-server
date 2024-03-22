@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"yos/types"
+
+	"yos/controller"
 
 	_ "yos/migrations"
 
@@ -17,51 +18,35 @@ import (
 )
 
 func main() {
-    app := pocketbase.New()
+	app := pocketbase.New()
 
-    // loosely check if it was executed using "go run"
-    isGoRun := strings.HasPrefix(os.Args[0], os.TempDir())
+	// loosely check if it was executed using "go run"
+	isGoRun := strings.HasPrefix(os.Args[0], os.TempDir())
 
-    migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
-        // enable auto creation of migration files when making collection changes in the Admin UI
-        // (the isGoRun check is to enable it only during development)
-        Automigrate: isGoRun,
-    })
+	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
+		// enable auto creation of migration files when making collection changes in the Admin UI
+		// (the isGoRun check is to enable it only during development)
+		Automigrate: isGoRun,
+	})
 
-    // serves static files from the provided public dir (if exists)
-    app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-        e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
-        e.Router.GET("/rebuild-index", func(c echo.Context) error {
-            admin := apis.RequestInfo(c).Admin
+	// serves static files from the provided public dir (if exists)
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
+		e.Router.GET("/rebuild-index", func(c echo.Context) error {
+			authRecord := apis.RequestInfo(c).AuthRecord
+			// unauthorized
+			if authRecord == nil || !authRecord.GetBool("isAdmin") {
+				return c.JSON(http.StatusUnauthorized, "Unauthorized")
+			}
 
-            if admin == nil {
-                return c.JSON(http.StatusUnauthorized, "Unauthorized")
-            }
+			go controller.GenerateIndex(app.Dao(), authRecord.Id)
 
-            status := types.Systemstatus{}
-            err := app.Dao().DB().NewQuery("SELECT * FROM systemstatus WHERE name = 'index_rebuilding'").One(&status)
+			return c.JSON(http.StatusOK, map[string]string{"status": "started"})
+		})
+		return nil
+	})
 
-            if err != nil {
-                return c.JSON(http.StatusInternalServerError, err.Error())
-            }
-
-            if status.Value == "true" {
-                return c.JSON(http.StatusConflict, "Index is already being rebuilt")
-            }
-            
-            status.Value = "true"
-            err = app.Dao().DB().Model(&status).Update("Value")
-
-            if err != nil {
-                log.Println(err)
-                return c.JSON(http.StatusInternalServerError, err.Error())
-            }
-            return c.JSON(http.StatusOK, map[string]bool{"success": true})
-        })
-        return nil
-    })
-
-    if err := app.Start(); err != nil {
-        log.Fatal(err)
-    }
+	if err := app.Start(); err != nil {
+		log.Fatal(err)
+	}
 }

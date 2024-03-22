@@ -1,1 +1,6 @@
 pb_data
+pb_data_test
+data
+data_test
+*.test
+*.out

@@ -51,8 +51,8 @@ func init() {
 			"indexes": [
 				"CREATE UNIQUE INDEX ` + "`" + `idx_iteV39f` + "`" + ` ON ` + "`" + `systemstatus` + "`" + ` (` + "`" + `name` + "`" + `)"
 			],
-			"listRule": null,
-			"viewRule": null,
+			"listRule": "@request.auth.id != \"\"",
+			"viewRule": "@request.auth.id != \"\"",
 			"createRule": null,
 			"updateRule": null,
 			"deleteRule": null,
@@ -64,15 +64,21 @@ func init() {
 			return err
 		}
 
-		return daos.New(db).SaveCollection(collection)
-	}, func(db dbx.Builder) error {
-		dao := daos.New(db);
-
-		collection, err := dao.FindCollectionByNameOrId("zg8q4g3gl7xk0gd")
+		err := daos.New(db).SaveCollection(collection)
 		if err != nil {
 			return err
 		}
 
-		return dao.DeleteCollection(collection)
-	})
+		dao, err := daos.New(db).FindCollectionByNameOrId("systemstatus")
+		if err != nil {
+			return err
+		}
+
+		record := models.NewRecord(dao)
+		record.Set("name", "index_rebuilding")
+		record.Set("value", "false")
+
+		return daos.New(db).SaveRecord(record)
+
+	}, nil)
 }
