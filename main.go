@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"yos/controller"
+	"github.com/your-own-stuff/yos-server/controller"
 
-	_ "yos/migrations"
+	_ "github.com/your-own-stuff/yos-server/migrations"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v5"
