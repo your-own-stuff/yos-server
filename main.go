@@ -26,7 +26,13 @@ func init() {
 
 func main() {
 	app := pocketbase.New()
+
 	server := yos.New(app.Logger(), app.Dao())
+
+	app.OnAfterBootstrap().Add(func(e *core.BootstrapEvent) error {
+		server.Start()
+		return nil
+	})
 
 	// loosely check if it was executed using "go run"
 	isGoRun := strings.HasPrefix(os.Args[0], os.TempDir())
@@ -48,6 +54,11 @@ func main() {
 			}
 		}
 
+		return nil
+	})
+
+	app.OnTerminate().PreAdd(func(e *core.TerminateEvent) error {
+		server.Stop()
 		return nil
 	})
 
