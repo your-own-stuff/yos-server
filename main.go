@@ -6,16 +6,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/your-own-stuff/yos-server/controller"
-
 	_ "github.com/your-own-stuff/yos-server/migrations"
 
 	"github.com/joho/godotenv"
-	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+
+	"github.com/your-own-stuff/yos-server/yos"
 )
 
 func init() {
@@ -27,6 +26,13 @@ func init() {
 
 func main() {
 	app := pocketbase.New()
+
+	server := yos.New(app.Logger(), app.Dao())
+
+	app.OnAfterBootstrap().Add(func(e *core.BootstrapEvent) error {
+		server.Start()
+		return nil
+	})
 
 	// loosely check if it was executed using "go run"
 	isGoRun := strings.HasPrefix(os.Args[0], os.TempDir())
@@ -40,17 +46,19 @@ func main() {
 	// serves static files from the provided public dir (if exists)
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
-		e.Router.GET("/rebuild-index", func(c echo.Context) error {
-			authRecord := apis.RequestInfo(c).AuthRecord
-			// unauthorized
-			if authRecord == nil || !authRecord.GetBool("isAdmin") {
-				return c.JSON(http.StatusUnauthorized, "Unauthorized")
+
+		for _, v := range server.GetRoutes() {
+			switch v.Method {
+			case http.MethodGet:
+				e.Router.GET(v.Path, v.HandlerFunc)
 			}
+		}
 
-			go controller.GenerateIndex(app.Dao(), authRecord.Id)
+		return nil
+	})
 
-			return c.JSON(http.StatusOK, map[string]string{"status": "started"})
-		})
+	app.OnTerminate().PreAdd(func(e *core.TerminateEvent) error {
+		server.Stop()
 		return nil
 	})
 

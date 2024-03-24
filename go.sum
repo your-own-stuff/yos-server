@@ -191,6 +191,8 @@ github.com/pocketbase/dbx v1.10.1 h1:cw+vsyfCJD8YObOVeqb93YErnlxwYMkNZ4rwN0G0AaA
 github.com/pocketbase/dbx v1.10.1/go.mod h1:xXRCIAKTHMgUCyCKZm55pUOdvFziJjQfXaWKhu2vhMs=
 github.com/pocketbase/pocketbase v0.22.5 h1:Zu1ghcVBZ985bp0/3rP2+5I+1cJQrtRithXtVZM/TcU=
 github.com/pocketbase/pocketbase v0.22.5/go.mod h1:J2hSDWDTPvaVzTWnZBWRWCNuK4mm1Ah4mWZeTunG5rI=
+github.com/pocketbase/pocketbase v0.22.6 h1:g3q9LVKoQb12SOCu2oolWhEy7wGXNh0YIkVJM8nQpbQ=
+github.com/pocketbase/pocketbase v0.22.6/go.mod h1:q7EZsAOxS4lFciVX1RCp1GnDqvJYlC026DWmZP0eryM=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
