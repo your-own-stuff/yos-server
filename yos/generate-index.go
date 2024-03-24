@@ -1,4 +1,4 @@
-package controller
+package yos
 
 import (
 	"io/fs"
