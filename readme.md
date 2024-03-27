@@ -5,6 +5,8 @@
 ### .env file
 
 ```
+ENVIRONMENT="development"
+
 PB_ADMIN_EMAIL="admin@example.com"
 PB_ADMIN_PW=
 

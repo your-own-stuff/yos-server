@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/your-own-stuff/yos-server/migrations"
 
+	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -17,8 +18,13 @@ import (
 	"github.com/your-own-stuff/yos-server/yos"
 )
 
+type YosConfig struct {
+	Environment string `env:"ENVIRONMENT" envDefault:"development"`
+}
+
 func init() {
 	err := godotenv.Load()
+
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -26,6 +32,11 @@ func init() {
 
 func main() {
 	app := pocketbase.New()
+
+	cfg := YosConfig{}
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatal(err)
+	}
 
 	server := yos.New(app.Logger(), app.Dao())
 
@@ -45,7 +56,9 @@ func main() {
 
 	// serves static files from the provided public dir (if exists)
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
+		if cfg.Environment == "development" {
+			e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./maintenance"), false))
+		}
 
 		for _, v := range server.GetRoutes() {
 			switch v.Method {
