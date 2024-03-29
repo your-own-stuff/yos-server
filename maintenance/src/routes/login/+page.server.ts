@@ -12,8 +12,6 @@ export const actions: Actions = {
 		try {
 			await pb.collection('users').authWithPassword(form.data.email, form.data.password);
 		} catch (e) {
-			console.log(e);
-
 			return setError(form, 'password', 'Invalid email or password');
 		}
 	}

@@ -13,7 +13,9 @@
 </script>
 
 <Toast position="br" />
-<Header user={data.user?.username ?? null} data={data.form} />
-<main class="p-4">
-	<slot />
-</main>
+<div class="grid h-full grid-rows-[auto_1fr] gap-2">
+	<Header user={data.user?.username ?? null} data={data.form} />
+	<main class="p-4">
+		<slot />
+	</main>
+</div>
