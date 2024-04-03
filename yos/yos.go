@@ -21,14 +21,14 @@ type Server struct {
 	done      chan bool
 }
 
-func New(logger *slog.Logger, dao *daos.Dao) *Server {
+func New(logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
 
 	return &Server{
 		logger:    logger,
-		dao:       dao,
+		dao:       nil,
 		workQueue: make(chan WorkItem, maxWorkers),
 		done:      make(chan bool),
 	}
@@ -54,6 +54,10 @@ func (y *Server) GetRoutes() []YosRoutes {
 			return c.JSON(http.StatusOK, map[string]string{"status": "started"})
 		}},
 	}
+}
+
+func (y *Server) SetDao(dao *daos.Dao) {
+	y.dao = dao
 }
 
 func (y *Server) Start() {
