@@ -27,10 +27,11 @@ func init() {
 func main() {
 	app := pocketbase.New()
 
-	server := yos.New(app.Logger(), app.Dao())
+	server := yos.New(app.Logger())
 
 	app.OnAfterBootstrap().Add(func(e *core.BootstrapEvent) error {
 		server.Start()
+		server.SetDao(app.Dao())
 		return nil
 	})
 
